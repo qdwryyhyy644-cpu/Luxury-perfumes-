@@ -102,6 +102,26 @@ function copyCCP() {
     alert('تم نسخ رقم الحساب الجاري الخاص بالأدمن!');
 }
 
+// متغير عام لتخزين الملف المرفوع
+let uploadedFile = null;
+
+// دالة للتعامل مع رفع الملف
+function handleFileUpload(event) {
+    const fileInput = event.target;
+    if (fileInput.files && fileInput.files[0]) {
+        uploadedFile = fileInput.files[0];
+        console.log('تم اختيار ملف:', uploadedFile.name);
+    }
+}
+
+// ربط حدث التغيير برفع الملف
+document.addEventListener('DOMContentLoaded', () => {
+    const fileInput = document.getElementById('buyer-file-proof');
+    if (fileInput) {
+        fileInput.addEventListener('change', handleFileUpload);
+    }
+});
+
 function handleOrderSubmit(e) {
     e.preventDefault();
     
@@ -136,10 +156,88 @@ function handleOrderSubmit(e) {
     }
 
     const adminWhatsApp = "213656708603";
-    window.open(`https://wa.me/${adminWhatsApp}?text=${message}`, '_blank');
     
-    cart = [];
-    updateCartUI();
-    closeCheckoutModal();
+    // إذا كان هناك ملف مرفوع
+    if (uploadedFile) {
+        // تحويل الملف إلى Base64
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const base64File = e.target.result;
+            
+            // حفظ الطلب مع الملف
+            let orders = JSON.parse(localStorage.getItem('perfume_orders')) || [];
+            const newOrder = {
+                id: Date.now(),
+                customerName: name,
+                city: city,
+                address: address,
+                phone: phone,
+                cartItems: cart,
+                total: parseInt(total),
+                paymentMethod: method,
+                fileData: base64File, // حفظ الملف بصيغة Base64
+                fileName: uploadedFile.name,
+                date: new Date().toISOString(),
+                status: 'pending'
+            };
+            
+            if (method === 'baridimob') {
+                newOrder.buyerCCP = document.getElementById('buyer-ccp').value;
+                newOrder.buyerAmount = document.getElementById('buyer-amount').value;
+                newOrder.receiptNum = document.getElementById('buyer-receipt-num').value;
+            }
+            
+            orders.push(newOrder);
+            localStorage.setItem('perfume_orders', JSON.stringify(orders));
+            
+            // إنشاء رسالة إضافية تشير إلى الملف
+            message += `%0A📎 *الملف المرفق:* ${uploadedFile.name}`;
+            
+            // إرسال الرسالة الأولى مع البيانات والإشارة إلى الملف
+            window.open(`https://wa.me/${adminWhatsApp}?text=${message}`, '_blank');
+            
+            // عرض رسالة للمستخدم
+            setTimeout(() => {
+                alert(`✅ تم إرسال الطلب بنجاح!\n\n📎 اسم الملف: ${uploadedFile.name}\n\nيمكنك الآن ارسال الملف عبر واتساب مباشرة من جهازك.`);
+                
+                cart = [];
+                updateCartUI();
+                closeCheckoutModal();
+                uploadedFile = null;
+                document.getElementById('buyer-file-proof').value = '';
+            }, 500);
+        };
+        reader.readAsDataURL(uploadedFile);
+    } else {
+        // إذا لم يكن هناك ملف، أرسل الرسالة فقط
+        let orders = JSON.parse(localStorage.getItem('perfume_orders')) || [];
+        const newOrder = {
+            id: Date.now(),
+            customerName: name,
+            city: city,
+            address: address,
+            phone: phone,
+            cartItems: cart,
+            total: parseInt(total),
+            paymentMethod: method,
+            date: new Date().toISOString(),
+            status: 'pending'
+        };
+        
+        if (method === 'baridimob') {
+            newOrder.buyerCCP = document.getElementById('buyer-ccp').value;
+            newOrder.buyerAmount = document.getElementById('buyer-amount').value;
+            newOrder.receiptNum = document.getElementById('buyer-receipt-num').value;
+        }
+        
+        orders.push(newOrder);
+        localStorage.setItem('perfume_orders', JSON.stringify(orders));
+        
+        window.open(`https://wa.me/${adminWhatsApp}?text=${message}`, '_blank');
+        
+        alert('✅ تم إرسال الطلب بنجاح!');
+        cart = [];
+        updateCartUI();
+        closeCheckoutModal();
+    }
 }
-
