@@ -1,0 +1,551 @@
+let currentUser = null;
+let adminData = {
+    username: 'admin',
+    password: 'fakhama2026',
+    whatsapp: '213656708603',
+    ccp: '123456789012',
+    email: 'qdwryyhyy644@gmail.com',
+    storeName: 'عطور الفخامة'
+};
+
+let base64Image = '';
+
+// تحميل البيانات عند فتح الصفحة
+document.addEventListener('DOMContentLoaded', () => {
+    loadAdminData();
+    checkLogin();
+});
+
+function checkLogin() {
+    const savedUser = localStorage.getItem('admin-logged-in');
+    if (savedUser) {
+        currentUser = savedUser;
+        showDashboard();
+        loadDashboardStats();
+    } else {
+        showLogin();
+    }
+}
+
+function showLogin() {
+    document.getElementById('login-container').style.display = 'flex';
+    document.getElementById('dashboard').style.display = 'none';
+}
+
+function showDashboard() {
+    document.getElementById('login-container').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'flex';
+    document.getElementById('admin-name').textContent = currentUser;
+}
+
+function handleLogin(event) {
+    event.preventDefault();
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+
+    if (username === adminData.username && password === adminData.password) {
+        localStorage.setItem('admin-logged-in', username);
+        currentUser = username;
+        showDashboard();
+        loadDashboardStats();
+    } else {
+        alert('❌ بيانات تسجيل الدخول خاطئة!');
+    }
+}
+
+function handleLogout() {
+    if (confirm('هل تريد تسجيل الخروج؟')) {
+        localStorage.removeItem('admin-logged-in');
+        currentUser = null;
+        document.getElementById('login-username').value = '';
+        document.getElementById('login-password').value = '';
+        showLogin();
+    }
+}
+
+// تبديل التبويبات
+function switchTab(tabName) {
+    // إخفاء جميع التبويبات
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // إزالة الـ active من جميع الأزرار
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // إظهار التبويب المطلوب
+    document.getElementById(tabName + '-tab').classList.add('active');
+    
+    // تحديد الزر الفعال
+    event.target.closest('.nav-item').classList.add('active');
+    
+    // إغلاق الـ sidebar على الأجهزة الصغيرة
+    if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.remove('open');
+    }
+    
+    // تحديث البيانات حسب التبويب
+    if (tabName === 'products') {
+        displayProducts();
+    } else if (tabName === 'orders') {
+        displayOrders('all');
+    }
+}
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ========== إدارة المنتجات ==========
+
+function openAddProductModal() {
+    document.getElementById('product-modal').classList.add('open');
+}
+
+function closeAddProductModal() {
+    document.getElementById('product-modal').classList.remove('open');
+    document.getElementById('modal-product-name').value = '';
+    document.getElementById('modal-product-price').value = '';
+    document.getElementById('modal-product-stock').value = '';
+    document.getElementById('product-image-preview').style.display = 'none';
+    base64Image = '';
+}
+
+function previewProductImage(input) {
+    const file = input.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            base64Image = e.target.result;
+            const preview = document.getElementById('product-image-preview');
+            preview.src = base64Image;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function handleAddProduct(event) {
+    event.preventDefault();
+    
+    let products = JSON.parse(localStorage.getItem('perfume_products')) || [];
+    
+    const newProduct = {
+        id: Date.now(),
+        name: document.getElementById('modal-product-name').value,
+        category: document.getElementById('modal-product-category').value,
+        price: parseFloat(document.getElementById('modal-product-price').value),
+        stock: parseInt(document.getElementById('modal-product-stock').value),
+        image: base64Image || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=400'
+    };
+    
+    products.push(newProduct);
+    localStorage.setItem('perfume_products', JSON.stringify(products));
+    
+    alert('✅ تم إضافة المنتج بنجاح!');
+    closeAddProductModal();
+    displayProducts();
+    loadDashboardStats();
+}
+
+function displayProducts() {
+    const products = JSON.parse(localStorage.getItem('perfume_products')) || [];
+    const container = document.getElementById('products-list');
+    
+    if (products.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">لا توجد منتجات حالياً</p>';
+        return;
+    }
+    
+    container.innerHTML = products.map(product => `
+        <div class="product-item">
+            <div class="product-info">
+                <div class="product-name">🌹 ${product.name}</div>
+                <div class="product-details">
+                    <span>📁 ${product.category}</span> | 
+                    <span>💰 ${product.price} دج</span> | 
+                    <span>📦 ${product.stock} وحدة</span>
+                </div>
+            </div>
+            <div class="product-actions">
+                <button class="btn-small btn-delete" onclick="deleteProduct(${product.id})">🗑️ حذف</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterProducts() {
+    const searchValue = document.getElementById('products-search').value.toLowerCase();
+    const products = JSON.parse(localStorage.getItem('perfume_products')) || [];
+    const filtered = products.filter(p => p.name.toLowerCase().includes(searchValue));
+    
+    const container = document.getElementById('products-list');
+    if (filtered.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">لا توجد منتجات مطابقة</p>';
+        return;
+    }
+    
+    container.innerHTML = filtered.map(product => `
+        <div class="product-item">
+            <div class="product-info">
+                <div class="product-name">🌹 ${product.name}</div>
+                <div class="product-details">
+                    <span>📁 ${product.category}</span> | 
+                    <span>💰 ${product.price} دج</span> | 
+                    <span>📦 ${product.stock} وحدة</span>
+                </div>
+            </div>
+            <div class="product-actions">
+                <button class="btn-small btn-delete" onclick="deleteProduct(${product.id})">🗑️ حذف</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function deleteProduct(id) {
+    if (confirm('هل تريد حذف هذا المنتج؟')) {
+        let products = JSON.parse(localStorage.getItem('perfume_products')) || [];
+        products = products.filter(p => p.id !== id);
+        localStorage.setItem('perfume_products', JSON.stringify(products));
+        alert('✅ تم حذف المنتج بنجاح!');
+        displayProducts();
+        loadDashboardStats();
+    }
+}
+
+// ========== إدارة الطلبات ==========
+
+function displayOrders(filter = 'all') {
+    const orders = JSON.parse(localStorage.getItem('perfume_orders')) || [];
+    const container = document.getElementById('orders-list');
+    
+    let filteredOrders = orders;
+    if (filter !== 'all') {
+        filteredOrders = orders.filter(o => o.status === filter);
+    }
+    
+    if (filteredOrders.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">لا توجد طلبات</p>';
+        return;
+    }
+    
+    container.innerHTML = filteredOrders.map(order => `
+        <div class="order-item">
+            <div class="product-info">
+                <div class="product-name">👤 ${order.customerName}</div>
+                <div class="product-details">
+                    <span>📍 ${order.city}</span> | 
+                    <span>📱 ${order.phone}</span> | 
+                    <span>📅 ${new Date(order.date).toLocaleDateString('ar-DZ')}</span>
+                </div>
+                <div class="product-details" style="margin-top:8px; color:#d4af37;">
+                    💰 ${order.total} دج
+                </div>
+            </div>
+            <div class="product-actions">
+                <button class="btn-small btn-delete" onclick="deleteOrder(${order.id})">🗑️ حذف</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterOrders(status) {
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    displayOrders(status);
+}
+
+function deleteOrder(id) {
+    if (confirm('هل تريد حذف هذا الطلب؟')) {
+        let orders = JSON.parse(localStorage.getItem('perfume_orders')) || [];
+        orders = orders.filter(o => o.id !== id);
+        localStorage.setItem('perfume_orders', JSON.stringify(orders));
+        alert('✅ تم حذف الطلب بنجاح!');
+        displayOrders('all');
+        loadDashboardStats();
+    }
+}
+
+// ========== لوحة المعلومات ==========
+
+function loadDashboardStats() {
+    const products = JSON.parse(localStorage.getItem('perfume_products')) || [];
+    const orders = JSON.parse(localStorage.getItem('perfume_orders')) || [];
+    
+    // عدد المنتجات
+    document.getElementById('stat-products').textContent = products.length;
+    
+    // عدد الطلبات
+    document.getElementById('stat-orders').textContent = orders.length;
+    
+    // إجمالي المبيعات
+    const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+    document.getElementById('stat-sales').textContent = totalSales.toLocaleString('ar-DZ') + ' دج';
+    
+    // أفضل عطر
+    if (products.length > 0) {
+        document.getElementById('stat-best').textContent = products[0].name;
+    }
+    
+    // آخر الطلبات
+    const recentOrders = orders.slice(-5).reverse();
+    const recentContainer = document.getElementById('recent-orders');
+    
+    if (recentOrders.length === 0) {
+        recentContainer.innerHTML = '<p style="text-align:center; color:#999;">لا توجد طلبات بعد</p>';
+    } else {
+        recentContainer.innerHTML = recentOrders.map(order => `
+            <div class="recent-order-item">
+                <div class="order-customer">
+                    <div class="order-customer-name">👤 ${order.customerName}</div>
+                    <div style="font-size:12px; color:#999;">📍 ${order.city}</div>
+                </div>
+                <div class="order-total">💰 ${order.total} دج</div>
+            </div>
+        `).join('');
+    }
+}
+
+// ========== التقارير PDF ==========
+
+function exportProductsToPDF() {
+    const products = JSON.parse(localStorage.getItem('perfume_products')) || [];
+    
+    let html = `
+        <html dir="rtl">
+        <head>
+            <style>
+                body { font-family: Arial; direction: rtl; }
+                h1 { color: #d4af37; text-align: center; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 12px; text-align: right; }
+                th { background: #d4af37; color: white; }
+                tr:nth-child(even) { background: #f9f9f9; }
+            </style>
+        </head>
+        <body>
+            <h1>📋 تقرير المنتجات - عطور الفخامة</h1>
+            <p style="text-align:center; color:#666;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-DZ')}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>اسم العطر</th>
+                        <th>التصنيف</th>
+                        <th>السعر (دج)</th>
+                        <th>الكمية</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    products.forEach(product => {
+        html += `
+            <tr>
+                <td>${product.name}</td>
+                <td>${product.category}</td>
+                <td>${product.price}</td>
+                <td>${product.stock}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+            <p style="margin-top:30px; text-align:center; color:#999; font-size:12px;">
+                تم إنشاء التقرير بواسطة: عطور الفخامة
+            </p>
+        </body>
+        </html>
+    `;
+    
+    const element = document.createElement('div');
+    element.innerHTML = html;
+    
+    const opt = {
+        margin: 10,
+        filename: 'تقرير_المنتجات.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
+}
+
+function exportOrdersToPDF() {
+    const orders = JSON.parse(localStorage.getItem('perfume_orders')) || [];
+    
+    let html = `
+        <html dir="rtl">
+        <head>
+            <style>
+                body { font-family: Arial; direction: rtl; }
+                h1 { color: #d4af37; text-align: center; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 10px; text-align: right; font-size: 12px; }
+                th { background: #d4af37; color: white; }
+                tr:nth-child(even) { background: #f9f9f9; }
+            </style>
+        </head>
+        <body>
+            <h1>📊 تقرير الطلبات - عطور الفخامة</h1>
+            <p style="text-align:center; color:#666;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-DZ')}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>اسم الزبون</th>
+                        <th>المدينة</th>
+                        <th>الهاتف</th>
+                        <th>المبلغ (دج)</th>
+                        <th>التاريخ</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    orders.forEach(order => {
+        html += `
+            <tr>
+                <td>${order.customerName}</td>
+                <td>${order.city}</td>
+                <td>${order.phone}</td>
+                <td>${order.total}</td>
+                <td>${new Date(order.date).toLocaleDateString('ar-DZ')}</td>
+            </tr>
+        `;
+    });
+    
+    const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+    
+    html += `
+                </tbody>
+            </table>
+            <p style="margin-top:20px; text-align:left; font-weight:bold;">
+                إجمالي المبيعات: ${totalSales.toLocaleString('ar-DZ')} دج
+            </p>
+        </body>
+        </html>
+    `;
+    
+    const element = document.createElement('div');
+    element.innerHTML = html;
+    
+    const opt = {
+        margin: 10,
+        filename: 'تقرير_الطلبات.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
+}
+
+function exportSalesReportPDF() {
+    const orders = JSON.parse(localStorage.getItem('perfume_orders')) || [];
+    const products = JSON.parse(localStorage.getItem('perfume_products')) || [];
+    const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+    
+    let html = `
+        <html dir="rtl">
+        <head>
+            <style>
+                body { font-family: Arial; direction: rtl; }
+                h1 { color: #d4af37; text-align: center; }
+                .stats { text-align: center; margin: 30px 0; }
+                .stat-box { display: inline-block; margin: 10px 20px; padding: 20px; background: #f0f0f0; border-radius: 8px; }
+                .stat-value { font-size: 28px; font-weight: bold; color: #d4af37; }
+            </style>
+        </head>
+        <body>
+            <h1>💰 تقرير المبيعات الشامل - عطور الفخامة</h1>
+            <p style="text-align:center; color:#666;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-DZ')}</p>
+            
+            <div class="stats">
+                <div class="stat-box">
+                    <div>عدد المنتجات</div>
+                    <div class="stat-value">${products.length}</div>
+                </div>
+                <div class="stat-box">
+                    <div>عدد الطلبات</div>
+                    <div class="stat-value">${orders.length}</div>
+                </div>
+                <div class="stat-box">
+                    <div>إجمالي المبيعات</div>
+                    <div class="stat-value">${totalSales.toLocaleString('ar-DZ')} دج</div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+    
+    const element = document.createElement('div');
+    element.innerHTML = html;
+    
+    const opt = {
+        margin: 10,
+        filename: 'تقرير_المبيعات.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
+}
+
+// ========== الإعدادات ==========
+
+function changePassword() {
+    const currentPass = document.getElementById('current-password').value;
+    const newPass = document.getElementById('new-password').value;
+    
+    if (!currentPass || !newPass) {
+        alert('❌ الرجاء ملء جميع الحقول!');
+        return;
+    }
+    
+    if (currentPass !== adminData.password) {
+        alert('❌ كلمة المرور الحالية خاطئة!');
+        return;
+    }
+    
+    adminData.password = newPass;
+    saveAdminData();
+    alert('✅ تم تحديث كلمة المرور بنجاح!');
+    document.getElementById('current-password').value = '';
+    document.getElementById('new-password').value = '';
+}
+
+function saveContactInfo() {
+    adminData.whatsapp = document.getElementById('whatsapp-number').value;
+    adminData.ccp = document.getElementById('ccp-number').value;
+    saveAdminData();
+    alert('✅ تم حفظ بيانات التواصل بنجاح!');
+}
+
+function saveStoreInfo() {
+    adminData.email = document.getElementById('store-email').value;
+    adminData.storeName = document.getElementById('store-name').value;
+    saveAdminData();
+    alert('✅ تم حفظ معلومات المتجر بنجاح!');
+}
+
+function saveAdminData() {
+    localStorage.setItem('admin-data', JSON.stringify(adminData));
+}
+
+function loadAdminData() {
+    const saved = localStorage.getItem('admin-data');
+    if (saved) {
+        adminData = JSON.parse(saved);
+    }
+    
+    // ملء الحقول
+    document.getElementById('whatsapp-number').value = adminData.whatsapp;
+    document.getElementById('ccp-number').value = adminData.ccp;
+    document.getElementById('store-email').value = adminData.email;
+    document.getElementById('store-name').value = adminData.storeName;
+}
