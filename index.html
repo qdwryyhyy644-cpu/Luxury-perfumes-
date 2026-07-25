@@ -68,6 +68,33 @@
         </div>
     </div>
 
+    <!-- Modal لعرض تفاصيل المنتج -->
+    <div class="modal" id="product-details-modal">
+        <div class="modal-content product-details-modal">
+            <i class="fa-solid fa-xmark close-modal" onclick="closeProductDetailsModal()"></i>
+            <div class="product-details-container">
+                <div class="product-details-image">
+                    <img id="details-product-image" alt="صورة المنتج">
+                </div>
+                <div class="product-details-info">
+                    <h2 id="details-product-name"></h2>
+                    <p id="details-product-category" class="product-category"></p>
+                    <div class="product-price-large">
+                        <span id="details-product-price"></span> دج
+                    </div>
+                    <div class="product-description-box">
+                        <h3>📝 وصف المنتج:</h3>
+                        <p id="details-product-description"></p>
+                    </div>
+                    <div class="product-stock-info">
+                        <p>الكمية المتاحة: <span id="details-product-stock"></span> وحدة</p>
+                    </div>
+                    <button class="btn-add-to-cart-large" id="details-add-to-cart-btn">إضافة للسلة</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- نافذة إتمام الطلب والدفع المخصصة -->
     <div class="modal" id="checkout-modal">
         <div class="modal-content">
