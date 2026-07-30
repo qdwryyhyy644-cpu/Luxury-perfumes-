@@ -1,10 +1,4 @@
-// --- تهيئة الاتصال بـ Supabase ---
-const SUPABASE_URL = "https://fzwznyhrxexlqnsmpcs.supabase.co";
-const SUPABASE_KEY = "sb_publishable_9qHnFx2_tS8ISOsIShuySA_MEcEZAFd";
-// التأكد من تحميل مكتبة Supabase
-const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-
-let currentUser = null;
+Let currentUser = null;
 let adminData = {
     username: 'admin',
     password: 'fakhama2026',
@@ -70,25 +64,29 @@ function handleLogout() {
 }
 
 // تبديل التبويبات
-function switchTab(tabName, event) {
+function switchTab(tabName) {
+    // إخفاء جميع التبويبات
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
     });
     
+    // إزالة الـ active من جميع الأزرار
     document.querySelectorAll('.nav-item').forEach(btn => {
         btn.classList.remove('active');
     });
     
+    // إظهار التبويب المطلوب
     document.getElementById(tabName + '-tab').classList.add('active');
     
-    if (event) {
-        event.target.closest('.nav-item').classList.add('active');
-    }
+    // تحديد الزر الفعال
+    event.target.closest('.nav-item').classList.add('active');
     
+    // إغلاق الـ sidebar على الأجهزة الصغيرة
     if (window.innerWidth <= 768) {
         document.getElementById('sidebar').classList.remove('open');
     }
     
+    // تحديث البيانات حسب التبويب
     if (tabName === 'products') {
         displayProducts();
     } else if (tabName === 'orders') {
@@ -100,7 +98,7 @@ function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
 }
 
-// ========== إدارة المنتجات (مربوطة بـ Supabase) ==========
+// ========== إدارة المنتجات ==========
 
 function openAddProductModal() {
     document.getElementById('product-modal').classList.add('open');
@@ -129,48 +127,34 @@ function previewProductImage(input) {
     }
 }
 
-// دالة إضافة منتج إلى Supabase
-async function handleAddProduct(event) {
+function handleAddProduct(event) {
     event.preventDefault();
     
-    const name = document.getElementById('modal-product-name').value;
-    const price = parseFloat(document.getElementById('modal-product-price').value);
-    const category = document.getElementById('modal-product-category').value;
-    const image = base64Image || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=400';
-
-    // حفظ المنتج في Supabase
-    const { data, error } = await supabase
-        .from('products')
-        .insert([
-            { 
-                name: name, 
-                price: price, 
-                image: image, 
-                description: `التصنيف: ${category}` 
-            }
-        ]);
-
-    if (error) {
-        alert('❌ حدث خطأ أثناء إضافة المنتج: ' + error.message);
-    } else {
-        alert('✅ تم إضافة المنتج إلى قاعدة البيانات بنجاح وسيظهر للعامة!');
-        closeAddProductModal();
-        displayProducts();
-        loadDashboardStats();
-    }
+    let products = JSON.parse(localStorage.getItem('perfume_products')) || [];
+    
+    const newProduct = {
+        id: Date.now(),
+        name: document.getElementById('modal-product-name').value,
+        category: document.getElementById('modal-product-category').value,
+        price: parseFloat(document.getElementById('modal-product-price').value),
+        stock: parseInt(document.getElementById('modal-product-stock').value),
+        image: base64Image || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=400'
+    };
+    
+    products.push(newProduct);
+    localStorage.setItem('perfume_products', JSON.stringify(products));
+    
+    alert('✅ تم إضافة المنتج بنجاح!');
+    closeAddProductModal();
+    displayProducts();
+    loadDashboardStats();
 }
 
-// دالة جلب وعرض المنتجات من Supabase
-async function displayProducts() {
+function displayProducts() {
+    const products = JSON.parse(localStorage.getItem('perfume_products')) || [];
     const container = document.getElementById('products-list');
-    container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">جاري تحميل المنتجات...</p>';
-
-    const { data: products, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-    if (error || !products || products.length === 0) {
+    
+    if (products.length === 0) {
         container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">لا توجد منتجات حالياً</p>';
         return;
     }
@@ -180,8 +164,9 @@ async function displayProducts() {
             <div class="product-info">
                 <div class="product-name">🌹 ${product.name}</div>
                 <div class="product-details">
+                    <span>📁 ${product.category}</span> | 
                     <span>💰 ${product.price} دج</span> | 
-                    <span>📝 ${product.description || ''}</span>
+                    <span>📦 ${product.stock} وحدة</span>
                 </div>
             </div>
             <div class="product-actions">
@@ -191,31 +176,12 @@ async function displayProducts() {
     `).join('');
 }
 
-// دالة حذف منتج من Supabase
-async function deleteProduct(id) {
-    if (confirm('هل تريد حذف هذا المنتج من قاعدة البيانات؟')) {
-        const { error } = await supabase
-            .from('products')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            alert('❌ حدث خطأ أثناء الحذف: ' + error.message);
-        } else {
-            alert('✅ تم حذف المنتج بنجاح!');
-            displayProducts();
-            loadDashboardStats();
-        }
-    }
-}
-
-async function filterProducts() {
+function filterProducts() {
     const searchValue = document.getElementById('products-search').value.toLowerCase();
+    const products = JSON.parse(localStorage.getItem('perfume_products')) || [];
+    const filtered = products.filter(p => p.name.toLowerCase().includes(searchValue));
+    
     const container = document.getElementById('products-list');
-    
-    const { data: products } = await supabase.from('products').select('*');
-    const filtered = (products || []).filter(p => p.name.toLowerCase().includes(searchValue));
-    
     if (filtered.length === 0) {
         container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">لا توجد منتجات مطابقة</p>';
         return;
@@ -226,7 +192,9 @@ async function filterProducts() {
             <div class="product-info">
                 <div class="product-name">🌹 ${product.name}</div>
                 <div class="product-details">
-                    <span>💰 ${product.price} دج</span>
+                    <span>📁 ${product.category}</span> | 
+                    <span>💰 ${product.price} دج</span> | 
+                    <span>📦 ${product.stock} وحدة</span>
                 </div>
             </div>
             <div class="product-actions">
@@ -234,6 +202,17 @@ async function filterProducts() {
             </div>
         </div>
     `).join('');
+}
+
+function deleteProduct(id) {
+    if (confirm('هل تريد حذف هذا المنتج؟')) {
+        let products = JSON.parse(localStorage.getItem('perfume_products')) || [];
+        products = products.filter(p => p.id !== id);
+        localStorage.setItem('perfume_products', JSON.stringify(products));
+        alert('✅ تم حذف المنتج بنجاح!');
+        displayProducts();
+        loadDashboardStats();
+    }
 }
 
 // ========== إدارة الطلبات ==========
@@ -272,9 +251,9 @@ function displayOrders(filter = 'all') {
     `).join('');
 }
 
-function filterOrders(status, event) {
+function filterOrders(status) {
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-    if (event) event.target.classList.add('active');
+    event.target.classList.add('active');
     displayOrders(status);
 }
 
@@ -291,12 +270,12 @@ function deleteOrder(id) {
 
 // ========== لوحة المعلومات ==========
 
-async function loadDashboardStats() {
-    const { data: products } = await supabase.from('products').select('*');
+function loadDashboardStats() {
+    const products = JSON.parse(localStorage.getItem('perfume_products')) || [];
     const orders = JSON.parse(localStorage.getItem('perfume_orders')) || [];
     
     // عدد المنتجات
-    document.getElementById('stat-products').textContent = (products || []).length;
+    document.getElementById('stat-products').textContent = products.length;
     
     // عدد الطلبات
     document.getElementById('stat-orders').textContent = orders.length;
@@ -306,7 +285,7 @@ async function loadDashboardStats() {
     document.getElementById('stat-sales').textContent = totalSales.toLocaleString('ar-DZ') + ' دج';
     
     // أفضل عطر
-    if (products && products.length > 0) {
+    if (products.length > 0) {
         document.getElementById('stat-best').textContent = products[0].name;
     }
     
@@ -329,7 +308,216 @@ async function loadDashboardStats() {
     }
 }
 
-// ========== الإعدادات والملفات ==========
+// ========== التقارير PDF ==========
+
+function exportProductsToPDF() {
+    const products = JSON.parse(localStorage.getItem('perfume_products')) || [];
+    
+    let html = `
+        <html dir="rtl">
+        <head>
+            <style>
+                body { font-family: Arial; direction: rtl; }
+                h1 { color: #d4af37; text-align: center; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 12px; text-align: right; }
+                th { background: #d4af37; color: white; }
+                tr:nth-child(even) { background: #f9f9f9; }
+            </style>
+        </head>
+        <body>
+            <h1>📋 تقرير المنتجات - عطور الفخامة</h1>
+            <p style="text-align:center; color:#666;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-DZ')}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>اسم العطر</th>
+                        <th>التصنيف</th>
+                        <th>السعر (دج)</th>
+                        <th>الكمية</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    products.forEach(product => {
+        html += `
+            <tr>
+                <td>${product.name}</td>
+                <td>${product.category}</td>
+                <td>${product.price}</td>
+                <td>${product.stock}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+            <p style="margin-top:30px; text-align:center; color:#999; font-size:12px;">
+                تم إنشاء التقرير بواسطة: عطور الفخامة
+            </p>
+        </body>
+        </html>
+    `;
+    
+    const element = document.createElement('div');
+    element.innerHTML = html;
+    
+    const opt = {
+        margin: 10,
+        filename: 'تقرير_المنتجات.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
+}
+
+function exportOrdersToPDF() {
+    const orders = JSON.parse(localStorage.getItem('perfume_orders')) || [];
+    
+    let html = `
+        <html dir="rtl">
+        <head>
+            <style>
+                body { font-family: Arial; direction: rtl; }
+                h1 { color: #d4af37; text-align: center; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 10px; text-align: right; font-size: 12px; }
+                th { background: #d4af37; color: white; }
+                tr:nth-child(even) { background: #f9f9f9; }
+            </style>
+        </head>
+        <body>
+            <h1>📊 تقرير الطلبات - عطور الفخامة</h1>
+            <p style="text-align:center; color:#666;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-DZ')}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>اسم الزبون</th>
+                        <th>المدينة</th>
+                        <th>الهاتف</th>
+                        <th>المبلغ (دج)</th>
+                        <th>التاريخ</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    orders.forEach(order => {
+        html += `
+            <tr>
+                <td>${order.customerName}</td>
+                <td>${order.city}</td>
+                <td>${order.phone}</td>
+                <td>${order.total}</td>
+                <td>${new Date(order.date).toLocaleDateString('ar-DZ')}</td>
+            </tr>
+        `;
+    });
+    
+    const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+    
+    html += `
+                </tbody>
+            </table>
+            <p style="margin-top:20px; text-align:left; font-weight:bold;">
+                إجمالي المبيعات: ${totalSales.toLocaleString('ar-DZ')} دج
+            </p>
+        </body>
+        </html>
+    `;
+    
+    const element = document.createElement('div');
+    element.innerHTML = html;
+    
+    const opt = {
+        margin: 10,
+        filename: 'تقرير_الطلبات.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
+}
+
+function exportSalesReportPDF() {
+    const orders = JSON.parse(localStorage.getItem('perfume_orders')) || [];
+    const products = JSON.parse(localStorage.getItem('perfume_products')) || [];
+    const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+    
+    let html = `
+        <html dir="rtl">
+        <head>
+            <style>
+                body { font-family: Arial; direction: rtl; }
+                h1 { color: #d4af37; text-align: center; }
+                .stats { text-align: center; margin: 30px 0; }
+                .stat-box { display: inline-block; margin: 10px 20px; padding: 20px; background: #f0f0f0; border-radius: 8px; }
+                .stat-value { font-size: 28px; font-weight: bold; color: #d4af37; }
+            </style>
+        </head>
+        <body>
+            <h1>💰 تقرير المبيعات الشامل - عطور الفخامة</h1>
+            <p style="text-align:center; color:#666;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-DZ')}</p>
+            
+            <div class="stats">
+                <div class="stat-box">
+                    <div>عدد المنتجات</div>
+                    <div class="stat-value">${products.length}</div>
+                </div>
+                <div class="stat-box">
+                    <div>عدد الطلبات</div>
+                    <div class="stat-value">${orders.length}</div>
+                </div>
+                <div class="stat-box">
+                    <div>إجمالي المبيعات</div>
+                    <div class="stat-value">${totalSales.toLocaleString('ar-DZ')} دج</div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+    
+    const element = document.createElement('div');
+    element.innerHTML = html;
+    
+    const opt = {
+        margin: 10,
+        filename: 'تقرير_المبيعات.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
+}
+
+// ========== الإعدادات ==========
+
+function changePassword() {
+    const currentPass = document.getElementById('current-password').value;
+    const newPass = document.getElementById('new-password').value;
+    
+    if (!currentPass || !newPass) {
+        alert('❌ الرجاء ملء جميع الحقول!');
+        return;
+    }
+    
+    if (currentPass !== adminData.password) {
+        alert('❌ كلمة المرور الحالية خاطئة!');
+        return;
+    }
+    
+    adminData.password = newPass;
+    saveAdminData();
+    alert('✅ تم تحديث كلمة المرور بنجاح!');
+    document.getElementById('current-password').value = '';
+    document.getElementById('new-password').value = '';
+}
 
 function saveContactInfo() {
     adminData.whatsapp = document.getElementById('whatsapp-number').value;
@@ -355,10 +543,10 @@ function loadAdminData() {
         adminData = JSON.parse(saved);
     }
     
-    if(document.getElementById('whatsapp-number')) {
-        document.getElementById('whatsapp-number').value = adminData.whatsapp;
-        document.getElementById('ccp-number').value = adminData.ccp;
-        document.getElementById('store-email').value = adminData.email;
-        document.getElementById('store-name').value = adminData.storeName;
-    }
+    // ملء الحقول
+    document.getElementById('whatsapp-number').value = adminData.whatsapp;
+    document.getElementById('ccp-number').value = adminData.ccp;
+    document.getElementById('store-email').value = adminData.email;
+    document.getElementById('store-name').value = adminData.storeName;
 }
+(هاذا سكريبت لوحة تحكم)
