@@ -549,4 +549,3 @@ function loadAdminData() {
     document.getElementById('store-email').value = adminData.email;
     document.getElementById('store-name').value = adminData.storeName;
 }
-
